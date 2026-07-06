@@ -32,7 +32,7 @@ function roleName(level) {
 }
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return json({ error: "Banco D1 não configurado. Crie o binding DB no Cloudflare." }, 500);
-  if (!env.ADMIN_USER || !env.ADMIN_PASS) return json({ error: "Credenciais não configuradas. Defina ADMIN_USER e ADMIN_PASS nas variáveis do Cloudflare." }, 500);
+  if (!env.ADMIN_PASS) return json({ error: "Credenciais não configuradas. Defina ADMIN_PASS nas variáveis do Cloudflare." }, 500);
   await ensureSchema(env);
 
   const body = await readJson(request);
@@ -40,23 +40,48 @@ export async function onRequestPost({ request, env }) {
   const password = String(body.password || "");
   const nowIso = new Date().toISOString();
 
-  const defaultUser = clean(env.ADMIN_USER, 80);
+  const defaultUser = "developer";
   const defaultPass = String(env.ADMIN_PASS || "");
-  const existingDefault = await env.DB.prepare("SELECT id FROM users WHERE username = ?").bind(defaultUser).first();
-  if (!existingDefault) {
-    await env.DB.prepare(`INSERT INTO users
-      (id, username, password, nickname, server, role_level, blocked, is_super, created_at, updated_at)
-      VALUES (?, ?, ?, ?, '39', 3, 0, 1, ?, ?)`)
-      .bind(crypto.randomUUID(), defaultUser, defaultPass, "Admin Kiari", nowIso, nowIso).run();
-  } else {
+  const legacyUser = clean(env.ADMIN_USER || "adminkiari", 80);
+
+  const existingDeveloper = await env.DB.prepare("SELECT id FROM users WHERE username = ?").bind(defaultUser).first();
+  const existingLegacy = legacyUser && legacyUser !== defaultUser
+    ? await env.DB.prepare("SELECT id FROM users WHERE username = ?").bind(legacyUser).first()
+    : null;
+
+  if (!existingDeveloper && existingLegacy) {
     await env.DB.prepare(`
       UPDATE users
-      SET role_level = 3,
+      SET username = ?,
+          password = ?,
+          nickname = 'Desenvolvedor',
+          server = '39',
+          role_level = 3,
           is_super = 1,
           blocked = 0,
           updated_at = ?
       WHERE username = ?
-    `).bind(nowIso, defaultUser).run();
+    `).bind(defaultUser, defaultPass, nowIso, legacyUser).run();
+    await env.DB.prepare("UPDATE sessions SET username = ? WHERE username = ?").bind(defaultUser, legacyUser).run();
+    await env.DB.prepare("UPDATE punishments SET created_by_username = ?, created_by = ? WHERE created_by_username = ? OR created_by = ?").bind(defaultUser, "Desenvolvedor", legacyUser, "Admin Kiari").run();
+  } else if (!existingDeveloper) {
+    await env.DB.prepare(`INSERT INTO users
+      (id, username, password, nickname, server, role_level, blocked, is_super, created_at, updated_at)
+      VALUES (?, ?, ?, ?, '39', 3, 0, 1, ?, ?)`)
+      .bind(crypto.randomUUID(), defaultUser, defaultPass, "Desenvolvedor", nowIso, nowIso).run();
+  } else {
+    await env.DB.prepare(`
+      UPDATE users
+      SET password = ?,
+          nickname = 'Desenvolvedor',
+          server = '39',
+          role_level = 3,
+          is_super = 1,
+          blocked = 0,
+          updated_at = ?
+      WHERE username = ?
+    `).bind(defaultPass, nowIso, defaultUser).run();
+    await env.DB.prepare("UPDATE punishments SET created_by = ? WHERE created_by_username = ?").bind("Desenvolvedor", defaultUser).run();
   }
 
   const user = await env.DB.prepare(`SELECT id, username, password, nickname, server, role_level, blocked, is_super

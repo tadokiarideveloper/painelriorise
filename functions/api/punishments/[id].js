@@ -4,6 +4,7 @@ function clean(value, max = 5000) { return String(value ?? "").trim().slice(0, m
 function normalizeDate(value) { const date = clean(value, 20); return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toISOString().slice(0, 10); }
 function normalizeUrl(value) { const url = clean(value, 2048); if (!url) return ""; return /^https?:\/\//i.test(url) ? url : `https://${url}`; }
 function canManage(user) { return Number(user.is_super) === 1 || Number(user.role_level) >= 2; }
+function canDelete(user) { return Number(user.is_super) === 1 || Number(user.role_level) >= 3; }
 async function requireAuth(request, env) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "").trim();
@@ -45,7 +46,7 @@ export async function onRequestDelete({ request, env, params }) {
   if (!user) return json({ error: "Acesso não autorizado." }, 401);
   const current = await env.DB.prepare("SELECT id, created_by_username FROM punishments WHERE id = ?").bind(params.id).first();
   if (!current) return json({ error: "Registro não encontrado." }, 404);
-  if (!canManage(user) && current.created_by_username && current.created_by_username !== user.username) return json({ error: "Acesso não autorizado." }, 403);
+  if (!canDelete(user)) return json({ error: "Somente Desenvolvedor pode excluir registros." }, 403);
   await env.DB.prepare("DELETE FROM punishments WHERE id = ?").bind(params.id).run();
   return json({ ok: true });
 }

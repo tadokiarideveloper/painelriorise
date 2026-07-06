@@ -1106,3 +1106,19 @@ button:disabled {
   border-color: rgba(255, 94, 94, 0.75);
   background: rgba(255, 94, 94, 0.2);
 }
+
+.link-btn {
+  background: transparent;
+  border: 0;
+  color: #cfc7ff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link-btn:hover {
+  color: #ffffff;
+}

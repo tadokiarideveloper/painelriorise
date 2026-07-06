@@ -29,6 +29,7 @@ const api = {
   session() { return this.request("/api/session"); },
   listPunishments() { return this.request("/api/punishments"); },
   createPunishment(payload) { return this.request("/api/punishments", { method: "POST", body: JSON.stringify(payload) }); },
+  deletePunishment(id) { return this.request(`/api/punishments/${encodeURIComponent(id)}`, { method: "DELETE" }); },
   getPublicPunishment(id) { return this.request(`/api/public/${encodeURIComponent(id)}`, { headers: {} }); },
   getSettings() { return this.request("/api/settings"); },
   saveSettings(payload) { return this.request("/api/settings", { method: "PUT", body: JSON.stringify(payload) }); },
@@ -106,13 +107,16 @@ async function showDashboard() {
 function applyRoleUI() {
   const canManage = !!currentUser?.canManageUsers;
   const canGoals = !!currentUser?.canManageGoals;
+  const canExport = Number(currentUser?.roleLevel || 1) >= 2 || currentUser?.isSuper;
   $("#usersNavBtn")?.classList.toggle("admin-only-hidden", !canManage);
 
   const brandSpan = $(".brand span");
-  if (brandSpan) brandSpan.textContent = currentUser?.nickname || "Admin Kiari";
+  if (brandSpan) brandSpan.textContent = currentUser?.nickname || "Desenvolvedor";
 
   const goalBox = $(".goal-input");
   if (goalBox) goalBox.classList.toggle("admin-only-hidden", !canGoals);
+
+  $$(".export-only").forEach(el => el.classList.toggle("admin-only-hidden", !canExport));
 
   const roleSelect = $("#newAdminRole");
   if (roleSelect) {
@@ -243,6 +247,7 @@ function renderUsers() {
         <button class="ghost-btn" type="button" data-user-action="edit" data-id="${escapeAttr(u.id)}">Alterar usuário/senha</button>
         <button class="soft-btn" type="button" data-user-action="toggle" data-id="${escapeAttr(u.id)}">${Number(u.blocked) === 1 ? 'Desbloquear' : 'Bloquear'}</button>
         <button class="primary-btn" type="button" data-user-action="punishments" data-username="${escapeAttr(u.username)}">Ver punições</button>
+        <button class="ghost-btn" type="button" data-user-action="export-admin" data-username="${escapeAttr(u.username)}">Exportar registros do admin</button>
         ${deleteButton}
       </div>
     </article>`;
@@ -252,7 +257,7 @@ function renderUsers() {
 
 
 function displayRoleName(u) {
-  if ((u.username || "").toLowerCase() === "adminkiari" || Number(u.is_super) === 1) {
+  if ((u.username || "").toLowerCase() === "developer" || Number(u.is_super) === 1) {
     return "Admin (1) + Desenvolvedor (3)";
   }
   return `${u.role_name || "Admin"} (${Number(u.role_level) || 1})`;
@@ -261,12 +266,15 @@ function displayRoleName(u) {
 async function handleUserAction(e) {
   const btn = e.currentTarget;
   const action = btn.dataset.userAction;
-  if (action === "punishments") {
+  if (action === "punishments" || action === "export-admin") {
     const username = btn.dataset.username;
-    const filtered = records.filter(r => r.createdByUsername === username || r.createdBy === username);
-    const container = document.createElement("div");
-    container.innerHTML = `<div class="detail-header"><img src="assets/logo-rio-rise.jpg" alt="Rio Rise"><div><span class="eyebrow">Punições do admin</span><h2>${escapeHtml(username)}</h2></div></div><div id="tempRecords" class="records-list"></div>`;
-    $("#modalContent").innerHTML = ""; $("#modalContent").appendChild(container); renderRecordButtons($("#tempRecords"), filtered, "Nenhuma punição encontrada para esse admin."); $("#detailModal").classList.remove("hidden"); return;
+    const admin = users.find(u => u.username === username) || { username, nickname: username, server: "39", role_level: 1, role_name: "Admin" };
+    if (action === "export-admin") {
+      exportMonthlyReport({ mode: "admin", admin });
+      return;
+    }
+    openAdminInfo(admin);
+    return;
   }
   const user = users.find(u => u.id === btn.dataset.id); if (!user) return;
   if (action === "toggle") {
@@ -316,7 +324,7 @@ async function handleUserAction(e) {
 }
 
 function fromApiRecord(r) {
-  return { id: r.id, type: r.type, playerName: r.player_name, time: r.punishment_time, reason: r.reason, observation: r.observation, article: r.article, server: r.server || "39", occurredDate: r.occurred_date, evidenceUrl: r.evidence_url, createdBy: r.created_by || "Admin Kiari", createdByUsername: r.created_by_username || "", createdAt: r.created_at };
+  return { id: r.id, type: r.type, playerName: r.player_name, time: r.punishment_time, reason: r.reason, observation: r.observation, article: r.article, server: r.server || "39", occurredDate: r.occurred_date, evidenceUrl: r.evidence_url, createdBy: r.created_by || "Desenvolvedor", createdByUsername: r.created_by_username || "", createdAt: r.created_at };
 }
 function renderAll() { renderDashboard(); renderSearchResults(); renderRecordsList(); }
 function renderDashboard() {
@@ -337,10 +345,152 @@ function renderRecordButtons(container, items, emptyText) {
   container.className = "records-list"; container.innerHTML = items.map(r => `<button class="record-item" data-id="${escapeAttr(r.id)}" type="button"><span class="record-main"><strong>${escapeHtml(r.playerName)}</strong><span>${escapeHtml(r.type)} • ${formatDate(r.occurredDate)} • ${escapeHtml(r.createdBy)}</span></span><span class="record-side">Servidor ${escapeHtml(r.server)}</span></button>`).join("");
   $$(".record-item", container).forEach(b => b.addEventListener("click", () => openDetail(b.dataset.id)));
 }
-function openDetail(id) { const r = records.find(x => x.id === id); if (!r) return; $("#modalContent").innerHTML = detailHtml(r); $("#detailModal").classList.remove("hidden"); $("#copyLinkBtn")?.addEventListener("click", () => copyShareLink(r)); }
+function openDetail(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  $("#modalContent").innerHTML = detailHtml(r);
+  $("#detailModal").classList.remove("hidden");
+  $("#copyLinkBtn")?.addEventListener("click", () => copyShareLink(r));
+  $("#deleteRecordBtn")?.addEventListener("click", () => deleteRecord(r));
+  $("#adminInfoBtn")?.addEventListener("click", () => openAdminInfo(getAdminForRecord(r)));
+}
 function closeModal() { $("#detailModal").classList.add("hidden"); }
-function detailHtml(r) { return `<div class="detail-header"><img src="assets/logo-rio-rise.jpg" alt="Rio Rise"><div><span class="eyebrow">Rio Rise • Servidor ${escapeHtml(r.server)}</span><h2 id="modalTitle">Ficha de punição</h2></div></div>${recordGridHtml(r)}<div class="detail-actions"><button id="copyLinkBtn" class="primary-btn" type="button">Copiar link da ficha</button>${r.evidenceUrl ? `<a class="ghost-btn" href="${escapeAttr(normalizeUrl(r.evidenceUrl))}" target="_blank" rel="noopener">Abrir evidência</a>` : ""}</div>`; }
-function recordGridHtml(r) { const ev = normalizeUrl(r.evidenceUrl || ""); return `<div class="detail-grid"><div class="meta-value"><small>Nome do jogador</small><p>${escapeHtml(r.playerName)}</p></div><div class="meta-value"><small>Tipo de punição</small><p>${escapeHtml(r.type)}</p></div><div class="meta-value"><small>Tempo</small><p>${escapeHtml(r.time)}</p></div><div class="meta-value"><small>Servidor</small><p>${escapeHtml(r.server)}</p></div><div class="meta-value"><small>Data do ocorrido</small><p>${formatDate(r.occurredDate)}</p></div><div class="meta-value"><small>Artigo</small><p>${escapeHtml(r.article)}</p></div><div class="meta-value"><small>Registrado por</small><p>${escapeHtml(r.createdBy)}</p></div><div class="meta-value"><small>Criado em</small><p>${formatDateTime(r.createdAt)}</p></div><div class="meta-value wide"><small>Motivo</small><p>${escapeHtml(r.reason)}</p></div><div class="meta-value wide"><small>Observação</small><p>${escapeHtml(r.observation || "Sem observação.")}</p></div><div class="meta-value wide"><small>Evidência</small>${ev ? `<p class="evidence-link-wrap"><a class="evidence-link" href="${escapeAttr(ev)}" target="_blank" rel="noopener">${escapeHtml(ev)}</a></p>` : `<p>Nenhum link de evidência foi informado.</p>`}</div></div>`; }
+function detailHtml(r) {
+  const canDeleteRecord = Number(currentUser?.roleLevel || 1) >= 3 || currentUser?.isSuper;
+  return `<div class="detail-header"><img src="assets/logo-rio-rise.jpg" alt="Rio Rise"><div><span class="eyebrow">Rio Rise • Servidor ${escapeHtml(r.server)}</span><h2 id="modalTitle">Ficha de punição</h2></div></div>${recordGridHtml(r)}<div class="detail-actions"><button id="copyLinkBtn" class="primary-btn" type="button">Copiar link da ficha</button>${r.evidenceUrl ? `<a class="ghost-btn" href="${escapeAttr(normalizeUrl(r.evidenceUrl))}" target="_blank" rel="noopener">Abrir evidência</a>` : ""}${canDeleteRecord ? `<button id="deleteRecordBtn" class="danger-btn" type="button">Excluir registro</button>` : ""}</div>`;
+}
+
+async function deleteRecord(r) {
+  if (!(Number(currentUser?.roleLevel || 1) >= 3 || currentUser?.isSuper)) {
+    return showToast("Somente Desenvolvedor pode excluir registros.");
+  }
+
+  const ok = confirm(`Excluir o registro de ${r.playerName}? Essa ação não pode ser desfeita.`);
+  if (!ok) return;
+
+  try {
+    await api.deletePunishment(r.id);
+    records = records.filter(item => item.id !== r.id);
+    closeModal();
+    renderAll();
+    showToast("Registro excluído.");
+  } catch (err) {
+    showToast(err.message || "Não foi possível excluir o registro.");
+  }
+}
+function recordGridHtml(r) {
+  const ev = normalizeUrl(r.evidenceUrl || "");
+  const canSeeAdmin = !!currentUser?.canManageUsers;
+  const adminHtml = canSeeAdmin
+    ? `<button id="adminInfoBtn" class="link-btn" type="button">${escapeHtml(r.createdBy)}</button>`
+    : escapeHtml(r.createdBy);
+  return `<div class="detail-grid"><div class="meta-value"><small>Nome do jogador</small><p>${escapeHtml(r.playerName)}</p></div><div class="meta-value"><small>Tipo de punição</small><p>${escapeHtml(r.type)}</p></div><div class="meta-value"><small>Tempo</small><p>${escapeHtml(r.time)}</p></div><div class="meta-value"><small>Servidor</small><p>${escapeHtml(r.server)}</p></div><div class="meta-value"><small>Data do ocorrido</small><p>${formatDate(r.occurredDate)}</p></div><div class="meta-value"><small>Artigo</small><p>${escapeHtml(r.article)}</p></div><div class="meta-value"><small>Registrado por</small><p>${adminHtml}</p></div><div class="meta-value"><small>Criado em</small><p>${formatDateTime(r.createdAt)}</p></div><div class="meta-value wide"><small>Motivo</small><p>${escapeHtml(r.reason)}</p></div><div class="meta-value wide"><small>Observação</small><p>${escapeHtml(r.observation || "Sem observação.")}</p></div><div class="meta-value wide"><small>Evidência</small>${ev ? `<p class="evidence-link-wrap"><a class="evidence-link" href="${escapeAttr(ev)}" target="_blank" rel="noopener">${escapeHtml(ev)}</a></p>` : `<p>Nenhum link de evidência foi informado.</p>`}</div></div>`;
+}
+
+function getAdminForRecord(r) {
+  return users.find(u => u.username === r.createdByUsername)
+    || users.find(u => u.nickname === r.createdBy)
+    || { username: r.createdByUsername || r.createdBy || "", nickname: r.createdBy || r.createdByUsername || "Sem admin", server: r.server || "39", role_level: 1, role_name: "Admin", punishment_count: records.filter(x => x.createdByUsername === r.createdByUsername || x.createdBy === r.createdBy).length };
+}
+
+function openAdminInfo(admin) {
+  const adminRecords = records.filter(r => r.createdByUsername === admin.username || r.createdBy === admin.nickname || r.createdBy === admin.username);
+  const monthRecords = filterCurrentMonth(adminRecords);
+  $("#modalContent").innerHTML = `
+    <div class="detail-header"><img src="assets/logo-rio-rise.jpg" alt="Rio Rise"><div><span class="eyebrow">Informações do administrador</span><h2>${escapeHtml(admin.nickname || admin.username)}</h2></div></div>
+    <div class="detail-grid">
+      <div class="meta-value"><small>Usuário</small><p>@${escapeHtml(admin.username || "—")}</p></div>
+      <div class="meta-value"><small>Nickname</small><p>${escapeHtml(admin.nickname || "—")}</p></div>
+      <div class="meta-value"><small>Cargo</small><p>${escapeHtml(displayRoleName(admin))}</p></div>
+      <div class="meta-value"><small>Servidor</small><p>${escapeHtml(admin.server || "39")}</p></div>
+      <div class="meta-value"><small>Total de registros</small><p>${adminRecords.length}</p></div>
+      <div class="meta-value"><small>Registros do mês</small><p>${monthRecords.length}</p></div>
+    </div>
+    <div class="detail-actions"><button id="exportAdminReportBtn" class="primary-btn" type="button">Exportar registros do admin</button></div>
+    <div id="tempRecords" class="records-list"></div>
+  `;
+  $("#exportAdminReportBtn")?.addEventListener("click", () => exportMonthlyReport({ mode: "admin", admin }));
+  renderRecordButtons($("#tempRecords"), adminRecords, "Nenhuma punição encontrada para esse admin.");
+  $("#detailModal").classList.remove("hidden");
+}
+
+function filterCurrentMonth(items) {
+  const now = new Date();
+  return items.filter(r => {
+    const base = r.occurredDate || r.createdAt;
+    const d = new Date(base);
+    return !Number.isNaN(d.getTime()) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+}
+
+async function exportMonthlyReport({ mode = "full", admin = null } = {}) {
+  if (!(Number(currentUser?.roleLevel || 1) >= 2 || currentUser?.isSuper)) {
+    return showToast("Somente Líder ou Desenvolvedor pode exportar logs.");
+  }
+
+  const source = mode === "admin" && admin
+    ? records.filter(r => r.createdByUsername === admin.username || r.createdBy === admin.nickname || r.createdBy === admin.username)
+    : records;
+  const monthRecords = filterCurrentMonth(source);
+  const now = new Date();
+  const monthName = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const title = mode === "admin" && admin ? `Relatório mensal do admin ${admin.nickname || admin.username}` : "Relatório mensal completo de logs";
+  const fileName = mode === "admin" && admin
+    ? `registros-${slug(admin.username || admin.nickname)}-${now.toISOString().slice(0,7)}.html`
+    : `log-completa-rio-rise-${now.toISOString().slice(0,7)}.html`;
+
+  const rows = monthRecords.map((r, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(r.playerName)}</td>
+      <td>${escapeHtml(r.type)}</td>
+      <td>${escapeHtml(r.reason)}</td>
+      <td>${escapeHtml(r.time)}</td>
+      <td>${formatDate(r.occurredDate)}</td>
+      <td>${escapeHtml(r.createdBy)}</td>
+      <td>${r.evidenceUrl ? `<a href="${escapeAttr(normalizeUrl(r.evidenceUrl))}">${escapeHtml(normalizeUrl(r.evidenceUrl))}</a>` : "Sem evidência"}</td>
+    </tr>
+  `).join("") || `<tr><td colspan="8">Nenhum registro encontrado neste mês.</td></tr>`;
+
+  const adminInfo = mode === "admin" && admin ? `
+    <section class="info">
+      <h2>Informações do administrador</h2>
+      <p><b>Nickname:</b> ${escapeHtml(admin.nickname || "—")}</p>
+      <p><b>Usuário:</b> @${escapeHtml(admin.username || "—")}</p>
+      <p><b>Cargo:</b> ${escapeHtml(displayRoleName(admin))}</p>
+      <p><b>Servidor:</b> ${escapeHtml(admin.server || "39")}</p>
+      <p><b>Total no mês:</b> ${monthRecords.length}</p>
+    </section>
+  ` : `<section class="info"><h2>Resumo geral</h2><p><b>Total de registros do mês:</b> ${monthRecords.length}</p><p><b>Exportado por:</b> ${escapeHtml(currentUser?.nickname || "—")}</p></section>`;
+
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title><style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#171527;background:#fff}.header{display:flex;align-items:center;gap:16px;border-bottom:3px solid #6d4cff;padding-bottom:14px;margin-bottom:18px}.header img{width:82px;height:82px;border-radius:50%;object-fit:cover}.header h1{margin:0;font-size:24px}.header p{margin:4px 0 0;color:#555}.info{border:1px solid #ddd;border-radius:14px;padding:14px;margin:16px 0;background:#fafafa}.info h2{margin:0 0 10px;font-size:18px}table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px}th,td{border:1px solid #d7d7d7;padding:9px;text-align:left;vertical-align:top}th{background:#6d4cff;color:white}tr:nth-child(even){background:#f7f7fb}a{color:#4c2ee8;word-break:break-all}.footer{margin-top:24px;color:#777;font-size:12px}@media print{body{margin:12px}.no-print{display:none}}</style></head><body>
+    <header class="header"><img src="${location.origin}/assets/logo-rio-rise.jpg" alt="Rio Rise"><div><h1>${escapeHtml(title)}</h1><p>Rio Rise • Servidor 39 • ${escapeHtml(monthName)}</p><p>Exportado em ${new Date().toLocaleString("pt-BR")}</p></div></header>
+    ${adminInfo}
+    <table><thead><tr><th>Nº</th><th>Jogador punido</th><th>Tipo</th><th>Motivo</th><th>Tempo</th><th>Data</th><th>Admin</th><th>Evidência</th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="footer">Relatório gerado automaticamente pelo Painel Rio Rise.</p>
+  </body></html>`;
+
+  downloadText(fileName, html, "text/html;charset=utf-8");
+  showToast("Relatório exportado.");
+}
+
+function downloadText(fileName, content, type = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function slug(v) {
+  return String(v || "relatorio").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "relatorio";
+}
+
 async function renderPublicView(id) { $("#app").classList.add("hidden"); const box = $("#publicView"); box.classList.remove("hidden"); box.innerHTML = `<article class="public-card"><p class="public-note">Carregando ficha...</p></article>`; try { const data = await api.getPublicPunishment(id); const r = fromApiRecord(data.record); box.innerHTML = `<article class="public-card"><div class="public-header"><img src="assets/logo-rio-rise.jpg" alt="Rio Rise"><div><span class="eyebrow">Rio Rise • Servidor ${escapeHtml(r.server)}</span><h1>Ficha de punição</h1></div></div>${recordGridHtml(r)}</article>`; } catch { box.innerHTML = `<article class="public-card"><div class="public-header"><img src="assets/logo-rio-rise.jpg" alt="Rio Rise"><div><span class="eyebrow">Rio Rise</span><h1>Ficha não encontrada</h1></div></div></article>`; } }
 function getPublicIdFromHash() { const m = location.hash.match(/ficha=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; }
 function copyShareLink(r) { copyText(`${location.href.split("#")[0]}#ficha=${encodeURIComponent(r.id)}`).then(() => showToast("Link da ficha copiado.")); }
@@ -353,7 +503,7 @@ function getCurrentMonthRecords(){ const now=new Date(); return records.filter(r
 function getTypeSummary(){ const s={}; records.forEach(r=>s[r.type||"Sem tipo"]=(s[r.type||"Sem tipo"]||0)+1); return s; }
 function getOrderedTypeSummary(){ return Object.entries(getTypeSummary()).map(([type,count])=>({type,count})).sort((a,b)=>b.count-a.count||a.type.localeCompare(b.type)); }
 function getPlayerSummary(){ const m=new Map(); records.forEach(r=>{const name=r.playerName||"Sem nome", cur=m.get(name)||{playerName:name,count:0,lastCreatedAt:r.createdAt}; cur.count++; if(new Date(r.createdAt)>new Date(cur.lastCreatedAt)) cur.lastCreatedAt=r.createdAt; m.set(name,cur);}); return [...m.values()].sort((a,b)=>b.count-a.count||a.playerName.localeCompare(b.playerName)); }
-function exportSpreadsheet(){ if(!window.XLSX) return showToast("Biblioteca de planilha não carregou."); const base=location.href.split("#")[0]; const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Backup Rio Rise - Servidor 39"],[],["Exportado em",new Date().toLocaleString("pt-BR")],["Total de registros",records.length],["Punições no mês",getCurrentMonthRecords().length],["Meta mensal",settings.monthlyGoal],["Usuário",currentUser?.nickname||""]]),"Resumo"); const rows=records.map((r,i)=>({"Nº":i+1,"ID":r.id,"Tipo de punição":r.type,"Nome do jogador":r.playerName,"Tempo":r.time,"Motivo":r.reason,"Observação":r.observation||"Sem observação.","Artigo":r.article,"Servidor":r.server,"Data do ocorrido":formatDate(r.occurredDate),"Link da evidência":normalizeUrl(r.evidenceUrl||""),"Link da ficha":`${base}#ficha=${encodeURIComponent(r.id)}`,"Registrado por":r.createdBy,"Usuário interno":r.createdByUsername,"Criado em":formatDateTime(r.createdAt)})); const ws=XLSX.utils.json_to_sheet(rows); ws["!autofilter"]={ref:XLSX.utils.encode_range(XLSX.utils.decode_range(ws["!ref"]||"A1:O1"))}; XLSX.utils.book_append_sheet(wb,ws,"Registros"); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(getOrderedTypeSummary()),"Resumo por Tipo"); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(getPlayerSummary()),"Resumo por Jogador"); XLSX.writeFile(wb,`backup-rio-rise-servidor-39-${new Date().toISOString().slice(0,10)}.xlsx`); }
+function exportSpreadsheet(){ if(!(Number(currentUser?.roleLevel || 1) >= 2 || currentUser?.isSuper)) return showToast("Somente Líder ou Desenvolvedor pode exportar planilha."); if(!window.XLSX) return showToast("Biblioteca de planilha não carregou."); const base=location.href.split("#")[0]; const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Backup Rio Rise - Servidor 39"],[],["Exportado em",new Date().toLocaleString("pt-BR")],["Total de registros",records.length],["Punições no mês",getCurrentMonthRecords().length],["Meta mensal",settings.monthlyGoal],["Usuário",currentUser?.nickname||""]]),"Resumo"); const rows=records.map((r,i)=>({"Nº":i+1,"ID":r.id,"Tipo de punição":r.type,"Nome do jogador":r.playerName,"Tempo":r.time,"Motivo":r.reason,"Observação":r.observation||"Sem observação.","Artigo":r.article,"Servidor":r.server,"Data do ocorrido":formatDate(r.occurredDate),"Link da evidência":normalizeUrl(r.evidenceUrl||""),"Link da ficha":`${base}#ficha=${encodeURIComponent(r.id)}`,"Registrado por":r.createdBy,"Usuário interno":r.createdByUsername,"Criado em":formatDateTime(r.createdAt)})); const ws=XLSX.utils.json_to_sheet(rows); ws["!autofilter"]={ref:XLSX.utils.encode_range(XLSX.utils.decode_range(ws["!ref"]||"A1:O1"))}; XLSX.utils.book_append_sheet(wb,ws,"Registros"); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(getOrderedTypeSummary()),"Resumo por Tipo"); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(getPlayerSummary()),"Resumo por Jogador"); XLSX.writeFile(wb,`backup-rio-rise-servidor-39-${new Date().toISOString().slice(0,10)}.xlsx`); }
 function normalizeUrl(v){ const url=String(v||"").trim(); if(!url) return ""; return /^https?:\/\//i.test(url)?url:`https://${url}`; }
 async function copyText(text){ if(navigator.clipboard?.writeText) return navigator.clipboard.writeText(text); const t=document.createElement("textarea"); t.value=text; t.style.position="fixed"; t.style.opacity="0"; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
 function showToast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.remove("hidden"); clearTimeout(showToast.timeout); showToast.timeout=setTimeout(()=>t.classList.add("hidden"),3000); }

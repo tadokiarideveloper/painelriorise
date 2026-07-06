@@ -25,7 +25,7 @@
       <div class="login-art">
         <img src="assets/logo-rio-rise.jpg" alt="Logo Rio Rise" />
         <h1>Rio Rise</h1>
-        <p>Painel privado da administração.</p>
+        <p>Painel privado para registrar, buscar e compartilhar fichas de punição.</p>
       </div>
       <form id="loginForm" class="login-card" autocomplete="off">
         <div class="logo-chip">
@@ -232,7 +232,8 @@
               <p>Registros sincronizados no Cloudflare D1.</p>
             </div>
             <div class="mini-actions">
-              <button id="exportBtn" class="ghost-btn" type="button">Exportar planilha .xlsx</button>
+              <button id="exportBtn" class="ghost-btn export-only" type="button">Exportar planilha .xlsx</button>
+              <button id="exportFullLogBtn" class="primary-btn export-only" type="button">Exportar log completa</button>
               <button id="refreshBtn" class="soft-btn" type="button">Atualizar banco</button>
             </div>
           </div>
@@ -244,7 +245,7 @@
             <div>
               <span class="eyebrow">Equipe administrativa</span>
               <h2>Cadastro e controle de usuários</h2>
-              <p>Área Sênior para cadastro de admins.</p>
+              <p>Admin (1) não vê esta área. Líder (2) cadastra Admin (1). Desenvolvedor (3) cadastra Admin, Líder ou Desenvolvedor.</p>
             </div>
             <button id="refreshUsersBtn" class="soft-btn" type="button">Atualizar usuários</button>
           </div>
