@@ -459,26 +459,7 @@ function adminSummaryRows(monthRecords) {
 
 
 function getAvailableServersForExport() {
-  const values = new Set();
-
-  records.forEach(r => {
-    const server = String(r.server || "").trim();
-    if (server) values.add(server);
-  });
-
-  users.forEach(u => {
-    const server = String(u.server || "").trim();
-    if (server) values.add(server);
-  });
-
-  if (!values.size) values.add("39");
-
-  return [...values].sort((a, b) => {
-    const na = Number(a);
-    const nb = Number(b);
-    if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
-    return a.localeCompare(b, "pt-BR", { numeric: true });
-  });
+  return Array.from({ length: 50 }, (_, index) => String(index + 1));
 }
 
 function chooseServersForFullLog() {
