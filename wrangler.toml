@@ -1,3 +1,8 @@
 name = "painelriorise"
 pages_build_output_dir = "."
 compatibility_date = "2026-07-06"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rio-rise-db"
+database_id = "e8878af4-9c8f-47e7-b9a6-74c84c5e46da"
