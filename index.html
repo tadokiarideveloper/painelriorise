@@ -61,6 +61,7 @@
           <button class="nav-link" data-target="register">Registrar log</button>
           <button class="nav-link" data-target="search">Buscar jogador</button>
           <button class="nav-link" data-target="records">Registros</button>
+          <button id="usersNavBtn" class="nav-link admin-only-hidden" data-target="users">Administradores</button>
         </nav>
         <button id="logoutBtn" class="ghost-btn logout">Sair</button>
       </aside>
@@ -172,7 +173,7 @@
                   <option>Mute Report</option>
                   <option>Kick</option>
                   <option>Solicitação de Ban</option>
-                  <option>Solicitação de Kick</option>
+                  <option>Solicitação de Prisão</option>
                 </select>
               </label>
               <label>Nome do jogador
@@ -237,6 +238,53 @@
           </div>
           <div id="recordsList" class="records-list empty-state">Nenhum registro salvo.</div>
         </section>
+
+        <section id="users" class="page-section">
+          <div class="section-heading split-heading">
+            <div>
+              <span class="eyebrow">Equipe administrativa</span>
+              <h2>Cadastro e controle de admins</h2>
+              <p>Área liberada para líder e desenvolvedor. Aqui dá para criar admin, bloquear acesso, alterar usuário/senha e conferir punições aplicadas.</p>
+            </div>
+            <button id="refreshUsersBtn" class="soft-btn" type="button">Atualizar usuários</button>
+          </div>
+
+          <div class="user-grid">
+            <form id="adminUserForm" class="form-card" autocomplete="off">
+              <div class="section-heading">
+                <span class="eyebrow">Novo admin</span>
+                <h2>Cadastrar admin (1)</h2>
+              </div>
+              <div class="form-grid">
+                <label>Usuário de login
+                  <input id="newAdminUsername" type="text" placeholder="Ex: adminservidor39" required />
+                </label>
+                <label>Senha
+                  <input id="newAdminPassword" type="password" placeholder="Defina uma senha" required />
+                </label>
+                <label>Nickname administrativo
+                  <input id="newAdminNickname" type="text" placeholder="Ex: Admin Kiari" required />
+                </label>
+                <label>Servidor que é admin
+                  <input id="newAdminServer" type="text" value="39" required />
+                </label>
+              </div>
+              <div class="form-actions">
+                <button class="primary-btn" type="submit">Cadastrar admin</button>
+                <button class="soft-btn" type="reset">Limpar</button>
+              </div>
+            </form>
+
+            <div>
+              <div class="section-heading">
+                <span class="eyebrow">Admins cadastrados</span>
+                <h2>Lista de usuários</h2>
+              </div>
+              <div id="usersList" class="records-list empty-state">Nenhum usuário carregado.</div>
+            </div>
+          </div>
+        </section>
+
       </div>
     </section>
   </main>
