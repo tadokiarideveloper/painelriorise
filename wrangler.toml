@@ -6,3 +6,7 @@ compatibility_date = "2026-07-06"
 binding = "DB"
 database_name = "rio-rise-db"
 database_id = "e8878af4-9c8f-47e7-b9a6-74c84c5e46da"
+
+[vars]
+ADMIN_USER = "adminkiari"
+ADMIN_PASS = "0237162610"
