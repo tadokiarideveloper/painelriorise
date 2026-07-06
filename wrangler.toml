@@ -1,0 +1,9 @@
+name = "rio-rise-painel"
+pages_build_output_dir = "."
+compatibility_date = "2026-07-06"
+
+# Depois de criar o banco D1, troque o database_id pelo ID real.
+[[d1_databases]]
+binding = "DB"
+database_name = "rio-rise-db"
+database_id = "COLE_AQUI_O_DATABASE_ID"

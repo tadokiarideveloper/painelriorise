@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rio Rise • Painel Administrativo</title>
+  <meta name="description" content="Painel administrativo Rio Rise para registro e busca de punições." />
+  <link rel="icon" href="assets/logo-rio-rise.jpg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="loader" class="loader-screen" aria-label="Carregando site Rio Rise">
+    <div class="loader-card">
+      <img src="assets/logo-rio-rise.jpg" alt="Rio Rise" class="loader-logo" />
+      <div class="loader-title">RIO RISE</div>
+      <div class="loader-subtitle">Carregando painel administrativo</div>
+      <div class="loader-bar"><span></span></div>
+    </div>
+  </div>
+
+  <section id="publicView" class="public-view hidden"></section>
+
+  <main id="app" class="app hidden">
+    <section id="loginScreen" class="login-screen">
+      <div class="login-art">
+        <img src="assets/logo-rio-rise.jpg" alt="Logo Rio Rise" />
+        <h1>Rio Rise</h1>
+        <p>Painel privado para registrar, buscar e compartilhar fichas de punição.</p>
+      </div>
+      <form id="loginForm" class="login-card" autocomplete="off">
+        <div class="logo-chip">
+          <img src="assets/logo-rio-rise.jpg" alt="Rio Rise" />
+          <span>Acesso Administrativo</span>
+        </div>
+        <h2>Entrar no painel</h2>
+        <p>Use seu usuário administrativo para acessar seus registros.</p>
+        <label>
+          Usuário
+          <input id="loginUser" type="text" placeholder="Digite seu usuário" autocomplete="username" required />
+        </label>
+        <label>
+          Senha
+          <input id="loginPass" type="password" placeholder="Digite sua senha" autocomplete="current-password" required />
+        </label>
+        <button class="primary-btn" type="submit">Acessar painel</button>
+        <p id="loginError" class="error-message" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="dashboard" class="dashboard hidden">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="assets/logo-rio-rise.jpg" alt="Logo Rio Rise" />
+          <div>
+            <strong>Rio Rise</strong>
+            <span>Admin Kiari</span>
+          </div>
+        </div>
+        <nav class="nav">
+          <button class="nav-link active" data-target="overview">Visão geral</button>
+          <button class="nav-link" data-target="register">Registrar log</button>
+          <button class="nav-link" data-target="search">Buscar jogador</button>
+          <button class="nav-link" data-target="records">Registros</button>
+        </nav>
+        <button id="logoutBtn" class="ghost-btn logout">Sair</button>
+      </aside>
+
+      <div class="content">
+        <header class="topbar">
+          <div>
+            <span class="eyebrow">Painel administrativo</span>
+            <h1>Controle de punições</h1>
+          </div>
+          <div class="topbar-logo">
+            <img src="assets/logo-rio-rise.jpg" alt="Rio Rise" />
+            <span>Servidor 39</span>
+          </div>
+        </header>
+
+        <section id="overview" class="page-section active-section">
+          <div class="stats-grid">
+            <article class="stat-card watermark">
+              <span>Punições no mês</span>
+              <strong id="monthCount">0</strong>
+              <small>Registros aplicados por você</small>
+            </article>
+            <article class="stat-card watermark">
+              <span>Total geral</span>
+              <strong id="totalCount">0</strong>
+              <small>Todos os registros salvos</small>
+            </article>
+            <article class="stat-card watermark">
+              <span>Bans</span>
+              <strong id="banCount">0</strong>
+              <small>Ban + solicitações de ban</small>
+            </article>
+            <article class="stat-card watermark">
+              <span>Servidor</span>
+              <strong>39</strong>
+              <small>Pré-preenchido no formulário</small>
+            </article>
+          </div>
+
+          <div class="panel-row">
+            <article class="panel target-panel">
+              <div class="panel-title">
+                <div>
+                  <span class="eyebrow">Meta administrativa</span>
+                  <h2>Progresso mensal</h2>
+                </div>
+                <label class="goal-input">Meta
+                  <input id="goalInput" type="number" min="1" max="9999" value="30" />
+                </label>
+              </div>
+              <div class="progress-wrap">
+                <div class="progress-circle" id="progressCircle"><span id="progressPercent">0%</span></div>
+                <div class="progress-info">
+                  <strong id="progressText">0 de 30 registros</strong>
+                  <p>Esse contador usa os registros salvos no mês atual.</p>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-title">
+                <div>
+                  <span class="eyebrow">Atividade recente</span>
+                  <h2>Últimos registros</h2>
+                </div>
+              </div>
+              <div id="recentList" class="recent-list empty-state">Nenhum registro ainda.</div>
+            </article>
+          </div>
+
+          <div class="charts-grid">
+            <article class="panel chart-panel">
+              <div class="panel-title">
+                <div>
+                  <span class="eyebrow">Tipos de punição</span>
+                  <h2>Resumo por categoria</h2>
+                </div>
+              </div>
+              <canvas id="typeChart" width="680" height="320"></canvas>
+            </article>
+            <article class="panel chart-panel">
+              <div class="panel-title">
+                <div>
+                  <span class="eyebrow">Últimos 7 dias</span>
+                  <h2>Registros por data</h2>
+                </div>
+              </div>
+              <canvas id="dailyChart" width="680" height="320"></canvas>
+            </article>
+          </div>
+        </section>
+
+        <section id="register" class="page-section">
+          <div class="section-heading">
+            <span class="eyebrow">Novo registro</span>
+            <h2>Preencher log de punição</h2>
+            <p>Preencha os dados abaixo e salve. Depois você pode copiar um link público somente da ficha.</p>
+          </div>
+
+          <form id="punishmentForm" class="form-card">
+            <div class="form-grid">
+              <label>Tipo de punição
+                <select id="punishmentType" required>
+                  <option value="">Selecione</option>
+                  <option>Ban</option>
+                  <option>Jail</option>
+                  <option>Mute</option>
+                  <option>Mute Report</option>
+                  <option>Kick</option>
+                  <option>Solicitação de Ban</option>
+                  <option>Solicitação de Kick</option>
+                </select>
+              </label>
+              <label>Nome do jogador
+                <input id="playerName" type="text" placeholder="Ex: Nome_Sobrenome" required />
+              </label>
+              <label>Tempo
+                <input id="punishmentTime" type="text" placeholder="Ex: 30 minutos / Permanente" required />
+              </label>
+              <label>Artigo
+                <input id="article" type="text" placeholder="Ex: Art. 5.1" required />
+              </label>
+              <label>Servidor
+                <input id="server" type="text" value="39" required />
+              </label>
+              <label>Data do ocorrido
+                <input id="occurredDate" type="date" required />
+              </label>
+              <label class="wide">Motivo
+                <textarea id="reason" rows="3" placeholder="Descreva o motivo da punição" required></textarea>
+              </label>
+              <label class="wide">Observação
+                <textarea id="observation" rows="3" placeholder="Observações adicionais, se houver"></textarea>
+              </label>
+              <label class="wide">Evidência por link
+                <input id="evidenceUrl" type="url" placeholder="Cole aqui o link do vídeo, imagem, Drive, clip, etc." />
+                <span class="field-hint">Use um link que possa ser aberto por quem receber a ficha.</span>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button class="primary-btn" type="submit">Salvar punição</button>
+              <button class="ghost-btn" id="copyLastLinkBtn" type="button" disabled>Copiar link da última ficha</button>
+              <button class="soft-btn" type="reset">Limpar formulário</button>
+            </div>
+          </form>
+        </section>
+
+        <section id="search" class="page-section">
+          <div class="section-heading">
+            <span class="eyebrow">Busca por nome</span>
+            <h2>Histórico do jogador</h2>
+            <p>Digite o nome ou parte do nome para ver punições que esse jogador já tomou por você.</p>
+          </div>
+          <div class="search-card">
+            <input id="searchInput" type="search" placeholder="Pesquisar jogador..." />
+            <button class="primary-btn" id="clearSearchBtn" type="button">Limpar</button>
+          </div>
+          <div id="searchResults" class="records-list empty-state">Nenhum jogador pesquisado.</div>
+        </section>
+
+        <section id="records" class="page-section">
+          <div class="section-heading split-heading">
+            <div>
+              <span class="eyebrow">Banco de dados</span>
+              <h2>Todos os registros</h2>
+              <p>Registros sincronizados no Cloudflare D1.</p>
+            </div>
+            <div class="mini-actions">
+              <button id="exportBtn" class="ghost-btn" type="button">Exportar planilha .xlsx</button>
+              <button id="refreshBtn" class="soft-btn" type="button">Atualizar banco</button>
+            </div>
+          </div>
+          <div id="recordsList" class="records-list empty-state">Nenhum registro salvo.</div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-close="modal"></div>
+    <article class="modal-card">
+      <button class="modal-close" data-close="modal" aria-label="Fechar">×</button>
+      <div id="modalContent"></div>
+    </article>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
