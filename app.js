@@ -56,7 +56,7 @@ function bindEvents() {
   $("#searchInput").addEventListener("input", renderSearchResults);
   $("#clearSearchBtn").addEventListener("click", () => { $("#searchInput").value = ""; renderSearchResults(); });
   $("#exportBtn")?.addEventListener("click", exportSpreadsheet);
-  $("#exportFullLogBtn")?.addEventListener("click", () => exportMonthlyReport({ mode: "full" }));
+  $("#exportFullLogBtn")?.addEventListener("click", chooseServersForFullLog);
   $("#refreshBtn")?.addEventListener("click", () => loadAll(true));
   $("#refreshUsersBtn")?.addEventListener("click", () => loadUsers(true));
   $("#adminUserForm")?.addEventListener("submit", handleCreateAdmin);
@@ -457,17 +457,121 @@ function adminSummaryRows(monthRecords) {
   return rows.map(a => `<tr><td>${escapeHtml(a.nickname)}</td><td>@${escapeHtml(a.username)}</td><td>${escapeHtml(a.server)}</td><td>${a.count}</td></tr>`).join("") || `<tr><td colspan="4">Nenhum admin com registro neste mês.</td></tr>`;
 }
 
-async function exportMonthlyReport({ mode = "full", admin = null } = {}) {
+
+function getAvailableServersForExport() {
+  const values = new Set();
+
+  records.forEach(r => {
+    const server = String(r.server || "").trim();
+    if (server) values.add(server);
+  });
+
+  users.forEach(u => {
+    const server = String(u.server || "").trim();
+    if (server) values.add(server);
+  });
+
+  if (!values.size) values.add("39");
+
+  return [...values].sort((a, b) => {
+    const na = Number(a);
+    const nb = Number(b);
+    if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+    return a.localeCompare(b, "pt-BR", { numeric: true });
+  });
+}
+
+function chooseServersForFullLog() {
   if (!(Number(currentUser?.roleLevel || 1) >= 2 || currentUser?.isSuper)) {
     return showToast("Somente Líder ou Desenvolvedor pode exportar logs.");
   }
 
+  const servers = getAvailableServersForExport();
+
+  $("#modalContent").innerHTML = `
+    <div class="detail-header">
+      <img src="assets/logo-rio-rise.jpg" alt="Rio Rise">
+      <div>
+        <span class="eyebrow">Exportar log completa</span>
+        <h2>Selecionar servidores</h2>
+      </div>
+    </div>
+
+    <p class="modal-help">Selecione quais servidores devem entrar na log completa do mês.</p>
+
+    <div class="server-select-box">
+      <label class="check-line check-all-line">
+        <input id="selectAllServers" type="checkbox" checked>
+        <span>Todos os servidores</span>
+      </label>
+
+      <div class="server-check-grid">
+        ${servers.map(server => `
+          <label class="check-line">
+            <input class="server-export-check" type="checkbox" value="${escapeAttr(server)}" checked>
+            <span>Servidor ${escapeHtml(server)}</span>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="detail-actions">
+      <button id="confirmFullLogExportBtn" class="primary-btn" type="button">Exportar selecionados</button>
+      <button id="cancelFullLogExportBtn" class="ghost-btn" type="button">Cancelar</button>
+    </div>
+  `;
+
+  $("#detailModal").classList.remove("hidden");
+
+  const allCheck = $("#selectAllServers");
+  const checks = $$(".server-export-check");
+
+  allCheck?.addEventListener("change", () => {
+    checks.forEach(check => { check.checked = allCheck.checked; });
+  });
+
+  checks.forEach(check => {
+    check.addEventListener("change", () => {
+      if (!check.checked && allCheck) allCheck.checked = false;
+      if (allCheck && checks.every(item => item.checked)) allCheck.checked = true;
+    });
+  });
+
+  $("#cancelFullLogExportBtn")?.addEventListener("click", closeModal);
+  $("#confirmFullLogExportBtn")?.addEventListener("click", () => {
+    const selectedServers = checks
+      .filter(check => check.checked)
+      .map(check => check.value);
+
+    if (!selectedServers.length) {
+      showToast("Selecione pelo menos um servidor.");
+      return;
+    }
+
+    closeModal();
+    exportMonthlyReport({ mode: "full", servers: selectedServers });
+  });
+}
+
+async function exportMonthlyReport({ mode = "full", admin = null, servers = null } = {}) {
+  if (!(Number(currentUser?.roleLevel || 1) >= 2 || currentUser?.isSuper)) {
+    return showToast("Somente Líder ou Desenvolvedor pode exportar logs.");
+  }
+
+  const selectedServers = Array.isArray(servers) && servers.length
+    ? servers.map(server => String(server))
+    : null;
+
   const source = mode === "admin" && admin
     ? records.filter(r => r.createdByUsername === admin.username || r.createdBy === admin.nickname || r.createdBy === admin.username)
-    : records;
+    : records.filter(r => !selectedServers || selectedServers.includes(String(r.server || "")));
+
   const monthRecords = filterCurrentMonth(source);
   const now = new Date();
   const monthName = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const serverLabel = selectedServers
+    ? selectedServers.map(server => `Servidor ${server}`).join(", ")
+    : "Todos os servidores";
   const title = mode === "admin" && admin ? `Relatório mensal do admin ${admin.nickname || admin.username}` : "Relatório mensal completo de logs";
   const fileName = mode === "admin" && admin
     ? `registros-${slug(admin.username || admin.nickname)}-${now.toISOString().slice(0,7)}.html`
@@ -495,11 +599,11 @@ async function exportMonthlyReport({ mode = "full", admin = null } = {}) {
       <p><b>Servidor:</b> ${escapeHtml(admin.server || "39")}</p>
       <p><b>Total no mês:</b> ${monthRecords.length}</p>
     </section>
-  ` : `<section class="info"><h2>Resumo geral</h2><p><b>Total de registros do mês:</b> ${monthRecords.length}</p><p><b>Exportado por:</b> ${escapeHtml(currentUser?.nickname || "—")}</p><h3>Admins no relatório</h3><table class="mini-table"><thead><tr><th>Admin</th><th>Usuário</th><th>Servidor</th><th>Registros no mês</th></tr></thead><tbody>${adminSummaryRows(monthRecords)}</tbody></table></section>`;
+  ` : `<section class="info"><h2>Resumo geral</h2><p><b>Servidores selecionados:</b> ${escapeHtml(serverLabel)}</p><p><b>Total de registros do mês:</b> ${monthRecords.length}</p><p><b>Exportado por:</b> ${escapeHtml(currentUser?.nickname || "—")}</p><h3>Admins no relatório</h3><table class="mini-table"><thead><tr><th>Admin</th><th>Usuário</th><th>Servidor</th><th>Registros no mês</th></tr></thead><tbody>${adminSummaryRows(monthRecords)}</tbody></table></section>`;
 
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title><style>
     body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#171527;background:#fff}.header{display:flex;align-items:center;gap:16px;border-bottom:3px solid #6d4cff;padding-bottom:14px;margin-bottom:18px}.header img{width:82px;height:82px;border-radius:50%;object-fit:cover}.header h1{margin:0;font-size:24px}.header p{margin:4px 0 0;color:#555}.info{border:1px solid #ddd;border-radius:14px;padding:14px;margin:16px 0;background:#fafafa}.info h2{margin:0 0 10px;font-size:18px}table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px}th,td{border:1px solid #d7d7d7;padding:9px;text-align:left;vertical-align:top}th{background:#6d4cff;color:white}.mini-table{margin-top:12px}.mini-table th{background:#22184d;color:white}tr:nth-child(even){background:#f7f7fb}a{color:#4c2ee8;word-break:break-all}.footer{margin-top:24px;color:#777;font-size:12px}@media print{body{margin:12px}.no-print{display:none}}</style></head><body>
-    <header class="header"><img src="${location.origin}/assets/logo-rio-rise.jpg" alt="Rio Rise"><div><h1>${escapeHtml(title)}</h1><p>${mode === "admin" && admin ? `Rio Rise • Servidor ${escapeHtml(admin.server || "39")}` : "Rio Rise • Todos os servidores"} • ${escapeHtml(monthName)}</p><p>Exportado em ${new Date().toLocaleString("pt-BR")}</p></div></header>
+    <header class="header"><img src="${location.origin}/assets/logo-rio-rise.jpg" alt="Rio Rise"><div><h1>${escapeHtml(title)}</h1><p>${mode === "admin" && admin ? `Rio Rise • Servidor ${escapeHtml(admin.server || "39")}` : `Rio Rise • ${escapeHtml(serverLabel)}`} • ${escapeHtml(monthName)}</p><p>Exportado em ${new Date().toLocaleString("pt-BR")}</p></div></header>
     ${adminInfo}
     <table><thead><tr><th>Nº</th><th>Jogador punido</th><th>Tipo</th><th>Motivo</th><th>Tempo</th><th>Data</th><th>Admin</th><th>Evidência</th></tr></thead><tbody>${rows}</tbody></table>
     <p class="footer">Relatório gerado automaticamente pelo Painel Rio Rise.</p>

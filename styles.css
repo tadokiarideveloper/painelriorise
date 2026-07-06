@@ -1127,3 +1127,44 @@ button:disabled {
   opacity: 0.78;
   cursor: not-allowed;
 }
+
+.modal-help {
+  color: var(--muted);
+  margin: 10px 0 16px;
+}
+
+.server-select-box {
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.06);
+  padding: 14px;
+  margin: 14px 0 18px;
+}
+
+.server-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.055);
+  cursor: pointer;
+}
+
+.check-line input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--purple-2);
+}
+
+.check-all-line {
+  background: rgba(113, 61, 244, 0.18);
+}
