@@ -71,7 +71,8 @@ export async function onRequestGet({ request, env }) {
   if (canManage(user)) {
     result = await env.DB.prepare(`SELECT id, type, player_name, punishment_time, reason, observation, article, server, occurred_date, evidence_url, created_by, created_by_username, created_at, updated_at FROM punishments ORDER BY datetime(created_at) DESC`).all();
   } else {
-    result = await env.DB.prepare(`SELECT id, type, player_name, punishment_time, reason, observation, article, server, occurred_date, evidence_url, created_by, created_by_username, created_at, updated_at FROM punishments WHERE created_by_username = ? OR created_by = ? ORDER BY datetime(created_at) DESC`).bind(user.username, user.nickname).all();
+    const userServer = clean(user.server || "39", 20) || "39";
+    result = await env.DB.prepare(`SELECT id, type, player_name, punishment_time, reason, observation, article, server, occurred_date, evidence_url, created_by, created_by_username, created_at, updated_at FROM punishments WHERE server = ? ORDER BY datetime(created_at) DESC`).bind(userServer).all();
   }
   return json({ records: result.results || [] });
 }
@@ -89,7 +90,7 @@ export async function onRequestPost({ request, env }) {
   const reason = clean(body.reason, 5000);
   const observation = clean(body.observation, 5000);
   const article = clean(body.article, 120);
-  const server = clean(body.server || "39", 20) || "39";
+  const server = canManage(user) ? (clean(body.server || user.server || "39", 20) || "39") : (clean(user.server || "39", 20) || "39");
   const occurredDate = normalizeDate(body.occurredDate);
   const evidenceUrl = normalizeUrl(body.evidenceUrl);
 

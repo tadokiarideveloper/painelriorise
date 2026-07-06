@@ -22,21 +22,21 @@ export async function onRequestGet({ request, env, params }) {
   if (!user) return json({ error: "Acesso não autorizado." }, 401);
   const record = await env.DB.prepare(`SELECT id, type, player_name, punishment_time, reason, observation, article, server, occurred_date, evidence_url, created_by, created_by_username, created_at, updated_at FROM punishments WHERE id = ?`).bind(params.id).first();
   if (!record) return json({ error: "Registro não encontrado." }, 404);
-  if (!canManage(user) && record.created_by_username && record.created_by_username !== user.username) return json({ error: "Acesso não autorizado." }, 403);
+  if (!canManage(user) && String(record.server || "39") !== String(user.server || "39")) return json({ error: "Acesso não autorizado." }, 403);
   return json({ record });
 }
 export async function onRequestPut({ request, env, params }) {
   if (!env.DB) return json({ error: "Banco D1 não configurado." }, 500);
   const user = await requireAuth(request, env);
   if (!user) return json({ error: "Acesso não autorizado." }, 401);
-  const current = await env.DB.prepare("SELECT id, created_by_username FROM punishments WHERE id = ?").bind(params.id).first();
+  const current = await env.DB.prepare("SELECT id, created_by_username, server FROM punishments WHERE id = ?").bind(params.id).first();
   if (!current) return json({ error: "Registro não encontrado." }, 404);
-  if (!canManage(user) && current.created_by_username && current.created_by_username !== user.username) return json({ error: "Acesso não autorizado." }, 403);
+  if (!canManage(user) && String(current.server || "39") !== String(user.server || "39")) return json({ error: "Acesso não autorizado." }, 403);
   const body = await readJson(request);
   const type = clean(body.type, 80);
   if (!ALLOWED_TYPES.has(type)) return json({ error: "Tipo de punição inválido." }, 400);
   await env.DB.prepare(`UPDATE punishments SET type = ?, player_name = ?, punishment_time = ?, reason = ?, observation = ?, article = ?, server = ?, occurred_date = ?, evidence_url = ?, updated_at = ? WHERE id = ?`)
-    .bind(type, clean(body.playerName, 160), clean(body.time, 120), clean(body.reason, 5000), clean(body.observation, 5000), clean(body.article, 120), clean(body.server || "39", 20) || "39", normalizeDate(body.occurredDate), normalizeUrl(body.evidenceUrl), new Date().toISOString(), params.id).run();
+    .bind(type, clean(body.playerName, 160), clean(body.time, 120), clean(body.reason, 5000), clean(body.observation, 5000), clean(body.article, 120), (canManage(user) ? (clean(body.server || user.server || "39", 20) || "39") : (clean(user.server || "39", 20) || "39")), normalizeDate(body.occurredDate), normalizeUrl(body.evidenceUrl), new Date().toISOString(), params.id).run();
   const record = await env.DB.prepare(`SELECT id, type, player_name, punishment_time, reason, observation, article, server, occurred_date, evidence_url, created_by, created_by_username, created_at, updated_at FROM punishments WHERE id = ?`).bind(params.id).first();
   return json({ record });
 }
@@ -44,7 +44,7 @@ export async function onRequestDelete({ request, env, params }) {
   if (!env.DB) return json({ error: "Banco D1 não configurado." }, 500);
   const user = await requireAuth(request, env);
   if (!user) return json({ error: "Acesso não autorizado." }, 401);
-  const current = await env.DB.prepare("SELECT id, created_by_username FROM punishments WHERE id = ?").bind(params.id).first();
+  const current = await env.DB.prepare("SELECT id, created_by_username, server FROM punishments WHERE id = ?").bind(params.id).first();
   if (!current) return json({ error: "Registro não encontrado." }, 404);
   if (!canDelete(user)) return json({ error: "Somente Desenvolvedor pode excluir registros." }, 403);
   await env.DB.prepare("DELETE FROM punishments WHERE id = ?").bind(params.id).run();

@@ -55,7 +55,8 @@ function bindEvents() {
   $("#copyLastLinkBtn").addEventListener("click", () => { const r = records.find(x => x.id === lastSavedId); if (r) copyShareLink(r); });
   $("#searchInput").addEventListener("input", renderSearchResults);
   $("#clearSearchBtn").addEventListener("click", () => { $("#searchInput").value = ""; renderSearchResults(); });
-  $("#exportBtn").addEventListener("click", exportSpreadsheet);
+  $("#exportBtn")?.addEventListener("click", exportSpreadsheet);
+  $("#exportFullLogBtn")?.addEventListener("click", () => exportMonthlyReport({ mode: "full" }));
   $("#refreshBtn")?.addEventListener("click", () => loadAll(true));
   $("#refreshUsersBtn")?.addEventListener("click", () => loadUsers(true));
   $("#adminUserForm")?.addEventListener("submit", handleCreateAdmin);
@@ -118,6 +119,21 @@ function applyRoleUI() {
 
   $$(".export-only").forEach(el => el.classList.toggle("admin-only-hidden", !canExport));
 
+  const serverInput = $("#server");
+  if (serverInput) {
+    const isAdminOnly = Number(currentUser?.roleLevel || 1) < 2 && !currentUser?.isSuper;
+    if (isAdminOnly) {
+      serverInput.value = currentUser?.server || "39";
+      serverInput.readOnly = true;
+      serverInput.classList.add("readonly-input");
+      serverInput.title = "Servidor fixo do seu usuário administrativo";
+    } else {
+      serverInput.readOnly = false;
+      serverInput.classList.remove("readonly-input");
+      serverInput.title = "";
+    }
+  }
+
   const roleSelect = $("#newAdminRole");
   if (roleSelect) {
     const isDeveloper = Number(currentUser?.roleLevel || 1) >= 3 || currentUser?.isSuper;
@@ -158,7 +174,11 @@ async function saveGoal() {
 
 function setDefaultDate() {
   if ($("#occurredDate") && !$("#occurredDate").value) $("#occurredDate").value = new Date().toISOString().slice(0, 10);
-  if ($("#server") && !$("#server").value) $("#server").value = "39";
+  if ($("#server")) {
+    const isAdminOnly = currentUser && Number(currentUser?.roleLevel || 1) < 2 && !currentUser?.isSuper;
+    if (isAdminOnly) $("#server").value = currentUser?.server || "39";
+    else if (!$("#server").value) $("#server").value = "39";
+  }
   if ($("#newAdminServer") && !$("#newAdminServer").value) $("#newAdminServer").value = "39";
 }
 
@@ -171,7 +191,9 @@ async function handlePunishmentSubmit(e) {
     reason: $("#reason").value.trim(),
     observation: $("#observation").value.trim(),
     article: $("#article").value.trim(),
-    server: $("#server").value.trim() || "39",
+    server: (Number(currentUser?.roleLevel || 1) < 2 && !currentUser?.isSuper)
+      ? (currentUser?.server || "39")
+      : ($("#server").value.trim() || "39"),
     occurredDate: $("#occurredDate").value,
     evidenceUrl: normalizeUrl($("#evidenceUrl").value.trim())
   };
@@ -258,7 +280,7 @@ function renderUsers() {
 
 function displayRoleName(u) {
   if ((u.username || "").toLowerCase() === "developer" || Number(u.is_super) === 1) {
-    return "Admin (1) + Desenvolvedor (3)";
+    return "Desenvolvedor (3)";
   }
   return `${u.role_name || "Admin"} (${Number(u.role_level) || 1})`;
 }
@@ -423,6 +445,18 @@ function filterCurrentMonth(items) {
   });
 }
 
+function adminSummaryRows(monthRecords) {
+  const map = new Map();
+  monthRecords.forEach(r => {
+    const key = r.createdByUsername || r.createdBy || "sem-usuario";
+    const cur = map.get(key) || { nickname: r.createdBy || "Sem admin", username: r.createdByUsername || "—", server: r.server || "39", count: 0 };
+    cur.count += 1;
+    map.set(key, cur);
+  });
+  const rows = [...map.values()].sort((a, b) => b.count - a.count || a.nickname.localeCompare(b.nickname));
+  return rows.map(a => `<tr><td>${escapeHtml(a.nickname)}</td><td>@${escapeHtml(a.username)}</td><td>${escapeHtml(a.server)}</td><td>${a.count}</td></tr>`).join("") || `<tr><td colspan="4">Nenhum admin com registro neste mês.</td></tr>`;
+}
+
 async function exportMonthlyReport({ mode = "full", admin = null } = {}) {
   if (!(Number(currentUser?.roleLevel || 1) >= 2 || currentUser?.isSuper)) {
     return showToast("Somente Líder ou Desenvolvedor pode exportar logs.");
@@ -461,11 +495,11 @@ async function exportMonthlyReport({ mode = "full", admin = null } = {}) {
       <p><b>Servidor:</b> ${escapeHtml(admin.server || "39")}</p>
       <p><b>Total no mês:</b> ${monthRecords.length}</p>
     </section>
-  ` : `<section class="info"><h2>Resumo geral</h2><p><b>Total de registros do mês:</b> ${monthRecords.length}</p><p><b>Exportado por:</b> ${escapeHtml(currentUser?.nickname || "—")}</p></section>`;
+  ` : `<section class="info"><h2>Resumo geral</h2><p><b>Total de registros do mês:</b> ${monthRecords.length}</p><p><b>Exportado por:</b> ${escapeHtml(currentUser?.nickname || "—")}</p><h3>Admins no relatório</h3><table class="mini-table"><thead><tr><th>Admin</th><th>Usuário</th><th>Servidor</th><th>Registros no mês</th></tr></thead><tbody>${adminSummaryRows(monthRecords)}</tbody></table></section>`;
 
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title><style>
-    body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#171527;background:#fff}.header{display:flex;align-items:center;gap:16px;border-bottom:3px solid #6d4cff;padding-bottom:14px;margin-bottom:18px}.header img{width:82px;height:82px;border-radius:50%;object-fit:cover}.header h1{margin:0;font-size:24px}.header p{margin:4px 0 0;color:#555}.info{border:1px solid #ddd;border-radius:14px;padding:14px;margin:16px 0;background:#fafafa}.info h2{margin:0 0 10px;font-size:18px}table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px}th,td{border:1px solid #d7d7d7;padding:9px;text-align:left;vertical-align:top}th{background:#6d4cff;color:white}tr:nth-child(even){background:#f7f7fb}a{color:#4c2ee8;word-break:break-all}.footer{margin-top:24px;color:#777;font-size:12px}@media print{body{margin:12px}.no-print{display:none}}</style></head><body>
-    <header class="header"><img src="${location.origin}/assets/logo-rio-rise.jpg" alt="Rio Rise"><div><h1>${escapeHtml(title)}</h1><p>Rio Rise • Servidor 39 • ${escapeHtml(monthName)}</p><p>Exportado em ${new Date().toLocaleString("pt-BR")}</p></div></header>
+    body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#171527;background:#fff}.header{display:flex;align-items:center;gap:16px;border-bottom:3px solid #6d4cff;padding-bottom:14px;margin-bottom:18px}.header img{width:82px;height:82px;border-radius:50%;object-fit:cover}.header h1{margin:0;font-size:24px}.header p{margin:4px 0 0;color:#555}.info{border:1px solid #ddd;border-radius:14px;padding:14px;margin:16px 0;background:#fafafa}.info h2{margin:0 0 10px;font-size:18px}table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px}th,td{border:1px solid #d7d7d7;padding:9px;text-align:left;vertical-align:top}th{background:#6d4cff;color:white}.mini-table{margin-top:12px}.mini-table th{background:#22184d;color:white}tr:nth-child(even){background:#f7f7fb}a{color:#4c2ee8;word-break:break-all}.footer{margin-top:24px;color:#777;font-size:12px}@media print{body{margin:12px}.no-print{display:none}}</style></head><body>
+    <header class="header"><img src="${location.origin}/assets/logo-rio-rise.jpg" alt="Rio Rise"><div><h1>${escapeHtml(title)}</h1><p>${mode === "admin" && admin ? `Rio Rise • Servidor ${escapeHtml(admin.server || "39")}` : "Rio Rise • Todos os servidores"} • ${escapeHtml(monthName)}</p><p>Exportado em ${new Date().toLocaleString("pt-BR")}</p></div></header>
     ${adminInfo}
     <table><thead><tr><th>Nº</th><th>Jogador punido</th><th>Tipo</th><th>Motivo</th><th>Tempo</th><th>Data</th><th>Admin</th><th>Evidência</th></tr></thead><tbody>${rows}</tbody></table>
     <p class="footer">Relatório gerado automaticamente pelo Painel Rio Rise.</p>

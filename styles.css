@@ -1122,3 +1122,8 @@ button:disabled {
 .link-btn:hover {
   color: #ffffff;
 }
+
+.readonly-input {
+  opacity: 0.78;
+  cursor: not-allowed;
+}

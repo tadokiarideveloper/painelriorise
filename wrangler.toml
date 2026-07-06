@@ -2,11 +2,9 @@ name = "painelriorise"
 pages_build_output_dir = "."
 compatibility_date = "2026-07-06"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "rio-rise-db"
-database_id = "e8878af4-9c8f-47e7-b9a6-74c84c5e46da"
-
-[vars]
-ADMIN_USER = "developer"
-ADMIN_PASS = "dev0237162610"
+# O banco D1 deve ser vinculado pelo painel da Cloudflare:
+# Workers & Pages > seu projeto > Settings > Bindings > Add > D1 database
+# Binding/Variable name: DB
+# Database: rio-rise-db
+#
+# Não deixe database_id com texto de exemplo aqui, senão o deploy falha.
