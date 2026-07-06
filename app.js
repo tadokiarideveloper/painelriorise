@@ -106,8 +106,20 @@ function applyRoleUI() {
   const canManage = !!currentUser?.canManageUsers;
   const canGoals = !!currentUser?.canManageGoals;
   $("#usersNavBtn")?.classList.toggle("admin-only-hidden", !canManage);
-  const brandSpan = $(".brand span"); if (brandSpan) brandSpan.textContent = currentUser?.nickname || "Admin Kiari";
-  const goalBox = $(".goal-input"); if (goalBox) goalBox.classList.toggle("admin-only-hidden", !canGoals);
+
+  const brandSpan = $(".brand span");
+  if (brandSpan) brandSpan.textContent = currentUser?.nickname || "Admin Kiari";
+
+  const goalBox = $(".goal-input");
+  if (goalBox) goalBox.classList.toggle("admin-only-hidden", !canGoals);
+
+  const roleSelect = $("#newAdminRole");
+  if (roleSelect) {
+    const isDeveloper = Number(currentUser?.roleLevel || 1) >= 3 || currentUser?.isSuper;
+    roleSelect.innerHTML = isDeveloper
+      ? `<option value="1">Admin (1)</option><option value="2">Líder (2)</option><option value="3">Desenvolvedor (3)</option>`
+      : `<option value="1">Admin (1)</option>`;
+  }
 }
 
 function activateSection(id) {
@@ -171,14 +183,30 @@ async function handlePunishmentSubmit(e) {
 
 async function handleCreateAdmin(e) {
   e.preventDefault();
+
+  if (!currentUser?.canManageUsers) {
+    showToast("Você não tem permissão para cadastrar usuários.");
+    return;
+  }
+
   const payload = {
     username: $("#newAdminUsername").value.trim(),
     password: $("#newAdminPassword").value,
     nickname: $("#newAdminNickname").value.trim(),
-    server: $("#newAdminServer").value.trim() || "39"
+    server: $("#newAdminServer").value.trim() || "39",
+    roleLevel: Number($("#newAdminRole")?.value || 1)
   };
-  try { await api.createUser(payload); $("#adminUserForm").reset(); setDefaultDate(); await loadUsers(true); showToast("Admin cadastrado."); }
-  catch (err) { showToast(err.message || "Não foi possível cadastrar."); }
+
+  try {
+    await api.createUser(payload);
+    $("#adminUserForm").reset();
+    setDefaultDate();
+    if ($("#newAdminRole")) $("#newAdminRole").value = "1";
+    await loadUsers(true);
+    showToast("Usuário cadastrado.");
+  } catch (err) {
+    showToast(err.message || "Não foi possível cadastrar.");
+  }
 }
 
 async function loadUsers(showMessage = false) {
@@ -195,7 +223,7 @@ function renderUsers() {
     <article class="user-card">
       <header>
         <div><strong>${escapeHtml(u.nickname)}</strong><small>@${escapeHtml(u.username)} • Servidor ${escapeHtml(u.server || "39")}</small></div>
-        <span class="role-pill">${escapeHtml(u.role_name || "Admin")} (${Number(u.role_level) || 1})</span>
+        <span class="role-pill">${escapeHtml(displayRoleName(u))}</span>
       </header>
       ${Number(u.blocked) === 1 ? '<span class="blocked-pill">Bloqueado</span>' : ''}
       <small>${Number(u.punishment_count || 0)} punições aplicadas</small>
@@ -206,6 +234,14 @@ function renderUsers() {
       </div>
     </article>`).join("");
   $$('[data-user-action]', box).forEach(btn => btn.addEventListener('click', handleUserAction));
+}
+
+
+function displayRoleName(u) {
+  if ((u.username || "").toLowerCase() === "adminkiari" || Number(u.is_super) === 1) {
+    return "Admin (1) + Desenvolvedor (3)";
+  }
+  return `${u.role_name || "Admin"} (${Number(u.role_level) || 1})`;
 }
 
 async function handleUserAction(e) {
@@ -227,8 +263,17 @@ async function handleUserAction(e) {
     const username = prompt("Novo usuário de login:", user.username); if (username === null) return;
     const nickname = prompt("Novo nickname administrativo:", user.nickname); if (nickname === null) return;
     const server = prompt("Servidor:", user.server || "39"); if (server === null) return;
+
+    let roleLevel = Number(user.role_level || 1);
+    if (Number(currentUser?.roleLevel || 1) >= 3 || currentUser?.isSuper) {
+      const rolePrompt = prompt("Cargo: 1 = Admin, 2 = Líder, 3 = Desenvolvedor", String(roleLevel));
+      if (rolePrompt === null) return;
+      roleLevel = Number(rolePrompt);
+      if (![1, 2, 3].includes(roleLevel)) return showToast("Cargo inválido. Use 1, 2 ou 3.");
+    }
+
     const password = prompt("Nova senha (deixe vazio para manter):", "");
-    try { await api.updateUser(user.id, { username, nickname, server, password }); await loadUsers(true); showToast("Usuário atualizado."); }
+    try { await api.updateUser(user.id, { username, nickname, server, password, roleLevel }); await loadUsers(true); showToast("Usuário atualizado."); }
     catch (err) { showToast(err.message || "Não foi possível atualizar."); }
   }
 }

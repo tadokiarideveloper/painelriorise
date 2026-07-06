@@ -27,26 +27,21 @@
         <h1>Rio Rise</h1>
         <p>Painel privado para registrar, buscar e compartilhar fichas de punição.</p>
       </div>
-
       <form id="loginForm" class="login-card" autocomplete="off">
         <div class="logo-chip">
           <img src="assets/logo-rio-rise.jpg" alt="Rio Rise" />
           <span>Acesso Administrativo</span>
         </div>
-
         <h2>Entrar no painel</h2>
         <p>Use seu usuário administrativo para acessar seus registros.</p>
-
         <label>
           Usuário
           <input id="loginUser" type="text" placeholder="Digite seu usuário" autocomplete="username" required />
         </label>
-
         <label>
           Senha
           <input id="loginPass" type="password" placeholder="Digite sua senha" autocomplete="current-password" required />
         </label>
-
         <button class="primary-btn" type="submit">Acessar painel</button>
         <p id="loginError" class="error-message" role="alert"></p>
       </form>
@@ -61,7 +56,6 @@
             <span>Admin Kiari</span>
           </div>
         </div>
-
         <nav class="nav">
           <button class="nav-link active" data-target="overview">Visão geral</button>
           <button class="nav-link" data-target="register">Registrar log</button>
@@ -69,7 +63,6 @@
           <button class="nav-link" data-target="records">Registros</button>
           <button id="usersNavBtn" class="nav-link admin-only-hidden" data-target="users">Administradores</button>
         </nav>
-
         <button id="logoutBtn" class="ghost-btn logout">Sair</button>
       </aside>
 
@@ -79,7 +72,6 @@
             <span class="eyebrow">Painel administrativo</span>
             <h1>Controle de punições</h1>
           </div>
-
           <div class="topbar-logo">
             <img src="assets/logo-rio-rise.jpg" alt="Rio Rise" />
             <span>Servidor 39</span>
@@ -93,19 +85,16 @@
               <strong id="monthCount">0</strong>
               <small>Registros aplicados por você</small>
             </article>
-
             <article class="stat-card watermark">
               <span>Total geral</span>
               <strong id="totalCount">0</strong>
               <small>Todos os registros salvos</small>
             </article>
-
             <article class="stat-card watermark">
               <span>Bans</span>
               <strong id="banCount">0</strong>
               <small>Ban + solicitações de ban</small>
             </article>
-
             <article class="stat-card watermark">
               <span>Servidor</span>
               <strong>39</strong>
@@ -120,17 +109,12 @@
                   <span class="eyebrow">Meta administrativa</span>
                   <h2>Progresso mensal</h2>
                 </div>
-
                 <label class="goal-input">Meta
                   <input id="goalInput" type="number" min="1" max="9999" value="30" />
                 </label>
               </div>
-
               <div class="progress-wrap">
-                <div class="progress-circle" id="progressCircle">
-                  <span id="progressPercent">0%</span>
-                </div>
-
+                <div class="progress-circle" id="progressCircle"><span id="progressPercent">0%</span></div>
                 <div class="progress-info">
                   <strong id="progressText">0 de 30 registros</strong>
                   <p>Esse contador usa os registros salvos no mês atual.</p>
@@ -145,7 +129,6 @@
                   <h2>Últimos registros</h2>
                 </div>
               </div>
-
               <div id="recentList" class="recent-list empty-state">Nenhum registro ainda.</div>
             </article>
           </div>
@@ -158,10 +141,8 @@
                   <h2>Resumo por categoria</h2>
                 </div>
               </div>
-
               <canvas id="typeChart" width="680" height="320"></canvas>
             </article>
-
             <article class="panel chart-panel">
               <div class="panel-title">
                 <div>
@@ -169,7 +150,6 @@
                   <h2>Registros por data</h2>
                 </div>
               </div>
-
               <canvas id="dailyChart" width="680" height="320"></canvas>
             </article>
           </div>
@@ -196,35 +176,27 @@
                   <option>Solicitação de Prisão</option>
                 </select>
               </label>
-
               <label>Nome do jogador
                 <input id="playerName" type="text" placeholder="Ex: Nome_Sobrenome" required />
               </label>
-
               <label>Tempo
                 <input id="punishmentTime" type="text" placeholder="Ex: 30 minutos / Permanente" required />
               </label>
-
               <label>Artigo
                 <input id="article" type="text" placeholder="Ex: Art. 5.1" required />
               </label>
-
               <label>Servidor
                 <input id="server" type="text" value="39" required />
               </label>
-
               <label>Data do ocorrido
                 <input id="occurredDate" type="date" required />
               </label>
-
               <label class="wide">Motivo
                 <textarea id="reason" rows="3" placeholder="Descreva o motivo da punição" required></textarea>
               </label>
-
               <label class="wide">Observação
                 <textarea id="observation" rows="3" placeholder="Observações adicionais, se houver"></textarea>
               </label>
-
               <label class="wide">Evidência por link
                 <input id="evidenceUrl" type="url" placeholder="Cole aqui o link do vídeo, imagem, Drive, clip, etc." />
                 <span class="field-hint">Use um link que possa ser aberto por quem receber a ficha.</span>
@@ -245,12 +217,10 @@
             <h2>Histórico do jogador</h2>
             <p>Digite o nome ou parte do nome para ver punições que esse jogador já tomou por você.</p>
           </div>
-
           <div class="search-card">
             <input id="searchInput" type="search" placeholder="Pesquisar jogador..." />
             <button class="primary-btn" id="clearSearchBtn" type="button">Limpar</button>
           </div>
-
           <div id="searchResults" class="records-list empty-state">Nenhum jogador pesquisado.</div>
         </section>
 
@@ -261,13 +231,11 @@
               <h2>Todos os registros</h2>
               <p>Registros sincronizados no Cloudflare D1.</p>
             </div>
-
             <div class="mini-actions">
               <button id="exportBtn" class="ghost-btn" type="button">Exportar planilha .xlsx</button>
               <button id="refreshBtn" class="soft-btn" type="button">Atualizar banco</button>
             </div>
           </div>
-
           <div id="recordsList" class="records-list empty-state">Nenhum registro salvo.</div>
         </section>
 
@@ -276,13 +244,8 @@
             <div>
               <span class="eyebrow">Equipe administrativa</span>
               <h2>Cadastro e controle de usuários</h2>
-              <p>
-                Admin (1) não tem acesso a esta área.
-                Líder (2) pode cadastrar Admin (1).
-                Desenvolvedor (3) pode cadastrar Admin (1), Líder (2) e Desenvolvedor (3).
-              </p>
+              <p>Admin (1) não vê esta área. Líder (2) cadastra Admin (1). Desenvolvedor (3) cadastra Admin, Líder ou Desenvolvedor.</p>
             </div>
-
             <button id="refreshUsersBtn" class="soft-btn" type="button">Atualizar usuários</button>
           </div>
 
@@ -292,24 +255,19 @@
                 <span class="eyebrow">Novo usuário administrativo</span>
                 <h2>Cadastrar usuário administrativo</h2>
               </div>
-
               <div class="form-grid">
                 <label>Usuário de login
                   <input id="newAdminUsername" type="text" placeholder="Ex: adminservidor39" required />
                 </label>
-
                 <label>Senha
                   <input id="newAdminPassword" type="password" placeholder="Defina uma senha" required />
                 </label>
-
                 <label>Nickname administrativo
                   <input id="newAdminNickname" type="text" placeholder="Ex: Admin Kiari" required />
                 </label>
-
                 <label>Servidor que é admin
                   <input id="newAdminServer" type="text" value="39" required />
                 </label>
-
                 <label>Cargo
                   <select id="newAdminRole" required>
                     <option value="1">Admin (1)</option>
@@ -318,7 +276,6 @@
                   </select>
                 </label>
               </div>
-
               <div class="form-actions">
                 <button class="primary-btn" type="submit">Cadastrar usuário</button>
                 <button class="soft-btn" type="reset">Limpar</button>
@@ -330,18 +287,17 @@
                 <span class="eyebrow">Usuários cadastrados</span>
                 <h2>Lista de usuários</h2>
               </div>
-
               <div id="usersList" class="records-list empty-state">Nenhum usuário carregado.</div>
             </div>
           </div>
         </section>
+
       </div>
     </section>
   </main>
 
   <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-backdrop" data-close="modal"></div>
-
     <article class="modal-card">
       <button class="modal-close" data-close="modal" aria-label="Fechar">×</button>
       <div id="modalContent"></div>

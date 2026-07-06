@@ -1,21 +1,28 @@
-ATUALIZAÇÃO RIO RISE
+Atualização do painel Rio Rise
 
-O que foi alterado:
-- Removida a foto grande do fundo da tela de login.
+Incluído nesta versão:
+- Foto grande de fundo removida da tela de login.
 - Removida a opção Solicitação de Kick.
 - Adicionada a opção Solicitação de Prisão.
 - Mantida a opção Mute Report.
-- Adicionados cargos: Desenvolvedor (3), Líder (2), Admin (1).
-- Usuário principal adminkiari entra como Admin (1), mas com permissões totais liberadas.
-- Líder/Desenvolvedor/Super podem cadastrar Admin (1).
-- Área de administradores com lista de usuários, bloqueio/desbloqueio, alteração de usuário/senha e verificação de punições aplicadas.
-- Meta administrativa só aparece para Líder/Desenvolvedor/Super.
-- Toda punição ou solicitação salva é enviada automaticamente para o Discord via webhook no backend.
+- Cargos administrativos:
+  - Admin (1): não vê a área de Administradores e não pode cadastrar usuários.
+  - Líder (2): vê a listagem, pode cadastrar apenas Admin (1), editar/bloquear/desbloquear admins e ver punições aplicadas.
+  - Desenvolvedor (3): pode cadastrar Admin (1), Líder (2) e Desenvolvedor (3), editar/bloquear/desbloquear usuários e ver punições aplicadas.
+- Usuário adminkiari fica com poder de Desenvolvedor (3) e usuário principal, além de aparecer no painel como Admin + Desenvolvedor.
+- Meta administrativa continua liberada apenas para Líder/Desenvolvedor.
+- Toda punição/solicitação salva continua sendo enviada para o Discord via backend.
 
-IMPORTANTE SOBRE CLOUDFLARE:
-Se seu projeto já está com D1 configurado no wrangler.toml, mantenha o seu database_id real.
-Não deixe o arquivo wrangler.toml com database_id de exemplo.
+Depois de enviar para o GitHub:
+1. Faça commit dos arquivos.
+2. Aguarde o deploy automático da Cloudflare ou clique em Retry deployment.
+3. No D1 Console, execute este comando para garantir o cargo do adminkiari:
 
-BANCO D1:
-Execute o schema.sql atualizado no Console do D1 para criar/atualizar as tabelas.
-O login adminkiari será criado automaticamente no primeiro login usando ADMIN_USER e ADMIN_PASS.
+UPDATE users
+SET role_level = 3,
+    is_super = 1,
+    blocked = 0,
+    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+WHERE username = 'adminkiari';
+
+Se o usuário adminkiari ainda não existir, basta fazer login uma vez com ADMIN_USER e ADMIN_PASS que ele será criado automaticamente com essas permissões.

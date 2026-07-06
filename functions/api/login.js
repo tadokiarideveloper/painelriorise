@@ -46,8 +46,17 @@ export async function onRequestPost({ request, env }) {
   if (!existingDefault) {
     await env.DB.prepare(`INSERT INTO users
       (id, username, password, nickname, server, role_level, blocked, is_super, created_at, updated_at)
-      VALUES (?, ?, ?, ?, '39', 1, 0, 1, ?, ?)`)
+      VALUES (?, ?, ?, ?, '39', 3, 0, 1, ?, ?)`)
       .bind(crypto.randomUUID(), defaultUser, defaultPass, "Admin Kiari", nowIso, nowIso).run();
+  } else {
+    await env.DB.prepare(`
+      UPDATE users
+      SET role_level = 3,
+          is_super = 1,
+          blocked = 0,
+          updated_at = ?
+      WHERE username = ?
+    `).bind(nowIso, defaultUser).run();
   }
 
   const user = await env.DB.prepare(`SELECT id, username, password, nickname, server, role_level, blocked, is_super
