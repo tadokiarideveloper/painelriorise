@@ -34,7 +34,8 @@ const api = {
   saveSettings(payload) { return this.request("/api/settings", { method: "PUT", body: JSON.stringify(payload) }); },
   listUsers() { return this.request("/api/users"); },
   createUser(payload) { return this.request("/api/users", { method: "POST", body: JSON.stringify(payload) }); },
-  updateUser(id, payload) { return this.request(`/api/users/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }); }
+  updateUser(id, payload) { return this.request(`/api/users/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }); },
+  deleteUser(id, payload) { return this.request(`/api/users/${encodeURIComponent(id)}`, { method: "DELETE", body: JSON.stringify(payload) }); }
 };
 
 function init() {
@@ -218,8 +219,19 @@ async function loadUsers(showMessage = false) {
 function renderUsers() {
   const box = $("#usersList"); if (!box) return;
   if (!users.length) { box.className = "records-list empty-state"; box.textContent = "Nenhum usuário cadastrado."; return; }
+
+  const canDeleteUsers = Number(currentUser?.roleLevel || 1) >= 3 || currentUser?.isSuper;
+  const myUsername = String(currentUser?.username || "").toLowerCase();
+
   box.className = "records-list";
-  box.innerHTML = users.map(u => `
+  box.innerHTML = users.map(u => {
+    const isSelf = String(u.username || "").toLowerCase() === myUsername;
+    const isSuperUser = Number(u.is_super) === 1;
+    const deleteButton = canDeleteUsers && !isSelf && !isSuperUser
+      ? `<button class="danger-btn" type="button" data-user-action="delete" data-id="${escapeAttr(u.id)}">Excluir usuário</button>`
+      : "";
+
+    return `
     <article class="user-card">
       <header>
         <div><strong>${escapeHtml(u.nickname)}</strong><small>@${escapeHtml(u.username)} • Servidor ${escapeHtml(u.server || "39")}</small></div>
@@ -231,8 +243,10 @@ function renderUsers() {
         <button class="ghost-btn" type="button" data-user-action="edit" data-id="${escapeAttr(u.id)}">Alterar usuário/senha</button>
         <button class="soft-btn" type="button" data-user-action="toggle" data-id="${escapeAttr(u.id)}">${Number(u.blocked) === 1 ? 'Desbloquear' : 'Bloquear'}</button>
         <button class="primary-btn" type="button" data-user-action="punishments" data-username="${escapeAttr(u.username)}">Ver punições</button>
+        ${deleteButton}
       </div>
-    </article>`).join("");
+    </article>`;
+  }).join("");
   $$('[data-user-action]', box).forEach(btn => btn.addEventListener('click', handleUserAction));
 }
 
@@ -275,6 +289,29 @@ async function handleUserAction(e) {
     const password = prompt("Nova senha (deixe vazio para manter):", "");
     try { await api.updateUser(user.id, { username, nickname, server, password, roleLevel }); await loadUsers(true); showToast("Usuário atualizado."); }
     catch (err) { showToast(err.message || "Não foi possível atualizar."); }
+  }
+
+  if (action === "delete") {
+    if (!(Number(currentUser?.roleLevel || 1) >= 3 || currentUser?.isSuper)) {
+      return showToast("Somente Desenvolvedor pode excluir usuários.");
+    }
+    if (Number(user.is_super) === 1 || String(user.username || "").toLowerCase() === String(currentUser?.username || "").toLowerCase()) {
+      return showToast("Esse usuário não pode ser excluído.");
+    }
+
+    const confirmName = prompt(`Digite o usuário ${user.username} para confirmar a exclusão:`);
+    if (confirmName !== user.username) return showToast("Exclusão cancelada.");
+
+    const deletePassword = prompt("Senha de exclusão:");
+    if (deletePassword === null) return;
+
+    try {
+      await api.deleteUser(user.id, { deletePassword });
+      await loadUsers(true);
+      showToast("Usuário excluído.");
+    } catch (err) {
+      showToast(err.message || "Não foi possível excluir.");
+    }
   }
 }
 

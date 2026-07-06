@@ -116,3 +116,42 @@ export async function onRequestPut({ request, env, params }) {
   await env.DB.prepare(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
   return json({ ok: true });
 }
+
+export async function onRequestDelete({ request, env, params }) {
+  if (!env.DB) return json({ error: "Banco D1 não configurado." }, 500);
+
+  const actor = await requireAuth(request, env);
+  if (!actor) return json({ error: "Acesso não autorizado." }, 403);
+
+  const actorIsDeveloper = Number(actor.is_super) === 1 || Number(actor.role_level || 1) >= 3;
+  if (!actorIsDeveloper) {
+    return json({ error: "Somente Desenvolvedor pode excluir usuários." }, 403);
+  }
+
+  const body = await readJson(request);
+  const deletePassword = String(body.deletePassword || "");
+  if (deletePassword !== "@pl@bm0v3l") {
+    return json({ error: "Senha de exclusão incorreta." }, 403);
+  }
+
+  const target = await env.DB.prepare(`
+    SELECT id, username, role_level, is_super
+    FROM users
+    WHERE id = ?
+  `).bind(params.id).first();
+
+  if (!target) return json({ error: "Usuário não encontrado." }, 404);
+
+  if (Number(target.is_super) === 1) {
+    return json({ error: "Esse usuário principal não pode ser excluído." }, 403);
+  }
+
+  if (String(target.username || "").toLowerCase() === String(actor.username || "").toLowerCase()) {
+    return json({ error: "Você não pode excluir seu próprio usuário." }, 403);
+  }
+
+  await env.DB.prepare("DELETE FROM sessions WHERE username = ?").bind(target.username).run();
+  await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(params.id).run();
+
+  return json({ ok: true });
+}
